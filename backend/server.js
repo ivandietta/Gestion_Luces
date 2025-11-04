@@ -32,9 +32,12 @@ const io = new Server(server, {
         callback(new Error('Not allowed by CORS'));
       }
     },
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-    credentials: true
-  }
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"]
+  },
+  transports: ['websocket', 'polling'], // Permitir ambos métodos
+  allowEIO3: true // Compatibilidad con versiones antiguas
 });
 
 const PORT = process.env.PORT || 3003;
