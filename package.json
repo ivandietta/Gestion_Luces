@@ -1,0 +1,17 @@
+{
+  "name": "gestion-aulas-iot",
+  "version": "1.0.0",
+  "description": "Sistema de gestión de aulas con IoT - Backend y Frontend",
+  "scripts": {
+    "start": "cd backend && node server.js",
+    "install-backend": "cd backend && npm install",
+    "install-frontend": "cd frontend && npm install",
+    "build-frontend": "cd frontend && npm run build"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": ["iot", "esp32", "websocket", "node", "react"],
+  "author": "",
+  "license": "MIT"
+}
