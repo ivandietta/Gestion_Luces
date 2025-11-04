@@ -4,9 +4,19 @@
 #include <ArduinoJson.h>
 #include <WebSocketsClient_Generic.h>
 
-// ========== CONFIGURACIÓN WIFI ==========
-const char* ssid = "Personal-388-2.4GHz";
-const char* password = "01424678639";
+// ========== CONFIGURACIÓN WIFI (MÚLTIPLES REDES) ==========
+// El ESP32 intentará conectarse a la primera red disponible
+struct WiFiNetwork {
+  const char* ssid;
+  const char* password;
+};
+
+WiFiNetwork wifiNetworks[] = {
+  {"Personal-388-2.4GHz", "01424678639"},
+  {"iPhone", "Joagenero03"}
+};
+
+const int numNetworks = sizeof(wifiNetworks) / sizeof(wifiNetworks[0]);
 
 // ========== CONFIGURACIÓN SERVIDOR ==========
 const char* serverIP = "192.168.0.6";  // IP local del backend
@@ -65,28 +75,80 @@ bool socketConnected = false;
 // ========== FUNCIÓN: CONECTAR WIFI ==========
 void connectWiFi() {
   Serial.println("\n========== CONECTANDO WIFI ==========");
-  Serial.print("SSID: ");
-  Serial.println(ssid);
+  Serial.print("Redes disponibles: ");
+  Serial.println(numNetworks);
   
   WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
   
-  int attempts = 0;
-  while (WiFi.status() != WL_CONNECTED && attempts < 30) {
-    delay(500);
-    Serial.print(".");
-    attempts++;
+  // Escanear redes disponibles
+  Serial.println("Escaneando redes WiFi...");
+  int networksFound = WiFi.scanNetworks();
+  Serial.print("Redes encontradas: ");
+  Serial.println(networksFound);
+  
+  bool connected = false;
+  
+  // Intentar conectarse a cada red configurada
+  for (int i = 0; i < numNetworks && !connected; i++) {
+    Serial.print("\n[");
+    Serial.print(i + 1);
+    Serial.print("/");
+    Serial.print(numNetworks);
+    Serial.print("] Intentando conectar a: ");
+    Serial.println(wifiNetworks[i].ssid);
+    
+    // Verificar si la red está disponible
+    bool networkAvailable = false;
+    for (int j = 0; j < networksFound; j++) {
+      if (WiFi.SSID(j) == String(wifiNetworks[i].ssid)) {
+        networkAvailable = true;
+        Serial.print("  ✓ Red encontrada (Señal: ");
+        Serial.print(WiFi.RSSI(j));
+        Serial.println(" dBm)");
+        break;
+      }
+    }
+    
+    if (!networkAvailable) {
+      Serial.println("  ✗ Red no disponible, probando siguiente...");
+      continue;
+    }
+    
+    WiFi.begin(wifiNetworks[i].ssid, wifiNetworks[i].password);
+    
+    int attempts = 0;
+    while (WiFi.status() != WL_CONNECTED && attempts < 20) {
+      delay(500);
+      Serial.print(".");
+      attempts++;
+    }
+    
+    if (WiFi.status() == WL_CONNECTED) {
+      Serial.println("\n✓ WiFi conectado exitosamente");
+      Serial.print("  SSID: ");
+      Serial.println(wifiNetworks[i].ssid);
+      espIP = WiFi.localIP().toString();
+      Serial.print("  IP del ESP32: ");
+      Serial.println(espIP);
+      Serial.print("  Señal: ");
+      Serial.print(WiFi.RSSI());
+      Serial.println(" dBm");
+      connected = true;
+    } else {
+      Serial.println("\n✗ No se pudo conectar a esta red");
+      WiFi.disconnect();
+    }
   }
   
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("\n✓ WiFi conectado");
-    espIP = WiFi.localIP().toString();
-    Serial.print("IP del ESP32: ");
-    Serial.println(espIP);
-  } else {
-    Serial.println("\n✗ Error: No se pudo conectar al WiFi");
-    Serial.println("Reiniciando en 5 segundos...");
-    delay(5000);
+  if (!connected) {
+    Serial.println("\n✗ Error: No se pudo conectar a ninguna red WiFi");
+    Serial.println("Redes intentadas:");
+    for (int i = 0; i < numNetworks; i++) {
+      Serial.print("  - ");
+      Serial.println(wifiNetworks[i].ssid);
+    }
+    Serial.println("\nReiniciando en 10 segundos...");
+    delay(10000);
     ESP.restart();
   }
 }
