@@ -381,12 +381,12 @@ void sendDataToBackend() {
   JsonObject luz1 = sensores.createNestedObject();
   luz1["pin"] = 32;
   int rawLight1 = analogRead(LDR1_PIN);
-  luz1["estado"] = rawLight1 > 4000 ? 1 : 0; // Umbral 4000: 1 = foco encendido, 0 = solo luz natural
+  luz1["estado"] = rawLight1 < 500 ? 1 : 0; // Umbral 500: 1 = foco encendido, 0 = solo luz natural
   
   JsonObject luz2 = sensores.createNestedObject();
   luz2["pin"] = 33;
   int rawLight2 = analogRead(LDR2_PIN);
-  luz2["estado"] = rawLight2 > 4000 ? 1 : 0; // Umbral 4000: 1 = foco encendido, 0 = solo luz natural
+  luz2["estado"] = rawLight2 < 500 ? 1 : 0; // Umbral 500: 1 = foco encendido, 0 = solo luz natural
   
   // ========== SENSOR DE MOVIMIENTO - SOLO LECTURA ==========
   JsonObject motion = sensores.createNestedObject();
