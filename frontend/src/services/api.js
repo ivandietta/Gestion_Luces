@@ -2,11 +2,16 @@ import axios from 'axios'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:3003'
 
+// Cache simple para reducir llamadas API repetidas
+const cache = new Map()
+const CACHE_DURATION = 30000 // 30 segundos
+
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 10000, // Timeout de 10 segundos para evitar esperas largas
 })
 
 // Interceptor para agregar token de autenticación
@@ -51,22 +56,42 @@ export const authService = {
       localStorage.removeItem('access_token')
       localStorage.removeItem('user')
     }
+    // Limpiar cache al hacer logout
+    cache.clear()
   },
+}
+
+// Helper para usar cache
+const withCache = async (key, fn, duration = CACHE_DURATION) => {
+  const cached = cache.get(key)
+  if (cached && Date.now() - cached.timestamp < duration) {
+    return cached.data
+  }
+  
+  const data = await fn()
+  cache.set(key, { data, timestamp: Date.now() })
+  return data
 }
 
 export const userService = {
   getAll: async (params = {}) => {
     try {
+      // No cachear listado de usuarios (cambia frecuentemente)
       const response = await api.get('/usuarios', { params })
       return response
     } catch (error) {
-      // Don't return fallback data in production - let the component handle the error
       throw error
     }
   },
   getById: (id) => api.get(`/usuarios/${id}`),
-  create: (userData) => api.post('/usuarios', userData),
-  update: (id, userData) => api.put(`/usuarios/${id}`, userData),
+  create: (userData) => {
+    cache.clear() // Limpiar cache al crear
+    return api.post('/usuarios', userData)
+  },
+  update: (id, userData) => {
+    cache.clear() // Limpiar cache al actualizar
+    return api.put(`/usuarios/${id}`, userData)
+  },
   delete: (id) => api.delete(`/usuarios/${id}`),
 }
 
