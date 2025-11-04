@@ -63,10 +63,13 @@ router.post('/register', async (req, res) => {
 // POST /api/auth/login - Iniciar sesión
 router.post('/login', async (req, res) => {
   try {
+    console.log('🔐 Intento de login recibido:', { legajo: req.body.legajo });
+    
     const { legajo, password } = req.body;
 
     // Validaciones básicas
     if (!legajo || !password) {
+      console.log('⚠️ Login fallido: Campos faltantes');
       return res.status(400).json({
         success: false,
         error: 'Legajo y contraseña son requeridos'
@@ -74,7 +77,10 @@ router.post('/login', async (req, res) => {
     }
 
     // Autenticar usuario
+    console.log('🔍 Buscando usuario con legajo:', legajo.trim());
     const { usuario, token } = await Usuario.authenticate(legajo.trim(), password);
+    
+    console.log('✅ Login exitoso para:', legajo.trim());
 
     res.json({
       success: true,
@@ -85,6 +91,9 @@ router.post('/login', async (req, res) => {
       }
     });
   } catch (error) {
+    console.error('❌ Error en login:', error.message);
+    console.error('Stack trace:', error.stack);
+    
     if (error.message.includes('Credenciales inválidas') ||
         error.message.includes('Usuario inactivo')) {
       res.status(401).json({
@@ -94,7 +103,8 @@ router.post('/login', async (req, res) => {
     } else {
       res.status(500).json({
         success: false,
-        error: error.message
+        error: error.message,
+        details: process.env.NODE_ENV === 'production' ? undefined : error.stack
       });
     }
   }
