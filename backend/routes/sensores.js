@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const Sensor = require('../models/Sensor');
-const Registro = require('../models/Registro');
+// const Registro = require('../models/Registro'); // Modelo eliminado
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
-const commandQueue = require('../commandQueue');
-const recentChanges = require('../recentChanges');
+// const commandQueue = require('../commandQueue'); // Archivo eliminado
+// const recentChanges = require('../recentChanges'); // Archivo eliminado
 
 // Aplicar autenticación a todas las rutas
 router.use(authenticateToken);
