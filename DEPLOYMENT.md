@@ -85,16 +85,21 @@ node_modules/
 # 1. Asegúrate de tener todo en GitHub
 git add .
 git commit -m "feat: prepare backend for deployment"
-git push origin desarrollo
+git push nuevo desarrollo  # O git push origin desarrollo
 
 # 2. En Railway:
 # - Click en "New Project"
 # - Selecciona "Deploy from GitHub repo"
-# - Autoriza Railway a acceder a tu repo
-# - Selecciona el repo "Proyecto-Comunicación-de-Datos-2025-Aula-IoT"
-# - Railway detectará automáticamente Node.js
+# - Autoriza Railway a acceder a tu repo (si no aparece, ve a GitHub Settings → Installations → Railway)
+# - Selecciona el repo "Gestion_Luces"
+# - Railway detectará automáticamente Node.js usando nixpacks.toml
 # - Click en "Deploy"
 ```
+
+**Nota importante:** El proyecto ya incluye los archivos `railway.json` y `nixpacks.toml` que le indican a Railway:
+- Dónde está el código del backend (carpeta `backend/`)
+- Cómo instalar dependencias (`npm ci`)
+- Cómo iniciar el servidor (`node server.js`)
 
 ### 2.3 Configurar variables de entorno en Railway
 
@@ -105,12 +110,9 @@ En el dashboard de Railway:
    - `NODE_ENV` = `production`
    - `FRONTEND_URL` = `https://tu-frontend.vercel.app` (lo agregarás después)
 
-### 2.4 Configurar root directory (importante)
+### 2.4 ~~Configurar root directory~~ (Ya no es necesario)
 
-Como el backend está en una subcarpeta:
-1. Ve a "Settings" en Railway
-2. En "Root Directory" pon: `backend`
-3. Guarda y redeploy
+✅ **Ya está configurado automáticamente** mediante `nixpacks.toml` y `railway.json`
 
 ### 2.5 Obtener la URL del backend
 
