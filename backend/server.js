@@ -14,6 +14,7 @@ const server = createServer(app);
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
+  'https://gestion-luces.vercel.app', // URL de producción principal
   'https://gestion-luces-git-desarrollo-ivans-projects-18247153.vercel.app',
   'https://gestion-luces-r2qi4m4l6-ivans-projects-18247153.vercel.app'
 ];
