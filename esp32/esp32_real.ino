@@ -19,9 +19,16 @@ WiFiNetwork wifiNetworks[] = {
 const int numNetworks = sizeof(wifiNetworks) / sizeof(wifiNetworks[0]);
 
 // ========== CONFIGURACIÓN SERVIDOR ==========
-const char* serverIP = "192.168.0.6";  // IP local del backend
-const int serverPort = 3003;
-String backendURL = "http://192.168.0.6:3003";
+// PRODUCCIÓN (Railway)
+const char* serverHost = "gestionluces-production.up.railway.app";
+const int serverPort = 443;  // HTTPS usa puerto 443
+String backendURL = "https://gestionluces-production.up.railway.app";
+
+// LOCAL (comentado - descomentar para desarrollo local)
+// const char* serverHost = "192.168.0.6";
+// const int serverPort = 3003;
+// String backendURL = "http://192.168.0.6:3003";
+
 String espIP = "";  // Se obtiene automáticamente al conectar WiFi
 
 // ========== DEFINICIÓN DE PINES ==========
@@ -548,10 +555,23 @@ void setup() {
   
   // Conectar WebSocket
   Serial.println("\n========== CONECTANDO WEBSOCKET ==========");
-  webSocket.begin(serverIP, serverPort, "/socket.io/?EIO=4&transport=websocket");
+  
+  // IMPORTANTE: Para HTTPS (Railway), usar beginSSL en vez de begin
+  // Comentar/descomentar según uses producción o local
+  
+  // PRODUCCIÓN (Railway - HTTPS)
+  webSocket.beginSSL(serverHost, serverPort, "/socket.io/?EIO=4&transport=websocket");
+  
+  // LOCAL (HTTP)
+  // webSocket.begin(serverHost, serverPort, "/socket.io/?EIO=4&transport=websocket");
+  
   webSocket.onEvent(webSocketEvent);
   webSocket.setReconnectInterval(5000);
   Serial.println("WebSocket iniciado");
+  Serial.print("Conectando a: wss://");
+  Serial.print(serverHost);
+  Serial.print(":");
+  Serial.println(serverPort);
   
   // Inicializar timer de movimiento
   lastMotionTime = millis();
