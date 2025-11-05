@@ -326,6 +326,7 @@ const History = () => {
       {/* Paginación */}
       {totalPages > 1 && (
         <div className="flex justify-center items-center space-x-2">
+          {/* Botón Anterior - Responsive: texto en desktop, flecha en móvil */}
           <button
             onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
             disabled={currentPage === 1}
@@ -362,6 +363,7 @@ const History = () => {
             <span className="hidden md:inline">Siguiente</span>
             <span className="md:hidden">→</span>
           </button>
+          {/* Fin paginación responsive */}
         </div>
       )}
     </div>
