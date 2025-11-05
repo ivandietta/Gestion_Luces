@@ -52,6 +52,8 @@ router.post('/data', async (req, res) => {
         // Verificar si el estado realmente cambió
         const estadoCambio = sensor.estado !== estado;
         
+        console.log(`🔍 Sensor ID ${sensor.id} (Pin ${pin}): Estado anterior=${sensor.estado}, Nuevo=${estado}, ¿Cambió? ${estadoCambio}`);
+        
         // Actualizar estado del sensor en BD
         await Sensor.updateEstado(sensor.id, estado);
         
@@ -91,6 +93,8 @@ router.post('/data', async (req, res) => {
             });
           }
         }
+      } else {
+        console.log(`⚠️ Sensor NO encontrado en BD: Pin ${pin} para aula ${aula.id}`);
       }
     }
 
