@@ -55,6 +55,14 @@ async function initializeServer() {
     await db.initialize();
     console.log('✅ Tablas inicializadas');
 
+    // Verificar si hay datos iniciales, si no, crearlos
+    const usersCount = await db.get('SELECT COUNT(*) as count FROM usuarios');
+    if (usersCount.count === 0) {
+      console.log('📝 Base de datos vacía, insertando datos iniciales...');
+      const initDb = require('./scripts/initDatabase');
+      await initDb(false); // false = no cerrar conexión
+    }
+
     // Configurar CORS middleware
     app.use(cors({
       origin: function (origin, callback) {
