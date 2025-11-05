@@ -10,8 +10,10 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 
-# Base de datos (opcional - descomentar si no quieres subir la BD)
-# database.sqlite
+# Base de datos - NO subir al repositorio (contiene datos de producción)
+database.sqlite
+*.sqlite
+*.db
 
 # Logs
 logs
