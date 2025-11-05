@@ -3,6 +3,8 @@ const router = express.Router();
 const Sensor = require('../models/Sensor');
 const Registro = require('../models/Registro');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
+const commandQueue = require('../commandQueue');
+const recentChanges = require('../recentChanges');
 
 // Aplicar autenticación a todas las rutas
 router.use(authenticateToken);
@@ -285,10 +287,18 @@ router.patch('/:id/estado', async (req, res) => {
     }
 
     // Si viene desde la app web, enviar comando al ESP32 (NO actualizar BD todavía)
-    commandQueue.enqueueCommand(aula.ip, sensorAntes.pin, estado === 1 ? 'on' : 'off');
+    const comando = {
+      pin: sensorAntes.pin,
+      estado: estado === 1 ? 'on' : 'off'
+    };
+    commandQueue.add(aula.ip, comando);
     
     // Registrar este cambio para evitar duplicados cuando el ESP32 confirme
-    recentChanges.recordUserChange(parseInt(id), estado, req.user.id);
+    recentChanges.add(aula.id, {
+      sensorId: parseInt(id),
+      estado: estado,
+      usuarioId: req.user.id
+    });
     
     // Crear registro tipo "usuario" (cambio manual desde la app)
     try {
