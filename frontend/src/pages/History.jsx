@@ -331,7 +331,8 @@ const History = () => {
             disabled={currentPage === 1}
             className="px-3 py-2 border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
           >
-            Anterior
+            <span className="hidden md:inline">Anterior</span>
+            <span className="md:hidden">←</span>
           </button>
 
           <div className="flex space-x-1">
@@ -358,7 +359,8 @@ const History = () => {
             disabled={currentPage === totalPages}
             className="px-3 py-2 border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
           >
-            Siguiente
+            <span className="hidden md:inline">Siguiente</span>
+            <span className="md:hidden">→</span>
           </button>
         </div>
       )}
