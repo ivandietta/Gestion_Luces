@@ -158,11 +158,11 @@ const AulaCard = ({
     // Marcar como pendiente (SIN cambiar el estado visual aún)
     setIsPending(true);
     
-    // Configurar timeout de 5 segundos
+    // Configurar timeout de 20 segundos
     const timeoutId = setTimeout(() => {
-      // Si después de 5 segundos sigue pendiente, quitar estado pendiente
+      // Si después de 20 segundos sigue pendiente, quitar estado pendiente
       setIsPending(false);
-    }, 5000);
+    }, 20000);
 
     try {
       // Enviar comando a través de WebSocket

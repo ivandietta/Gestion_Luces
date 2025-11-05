@@ -40,14 +40,33 @@ export function useAulaControl() {
         return;
       }
       
-      // Determinar nuevo estado: si alguno está encendido, apagar todos; si todos están apagados, encender todos
-      const algunoEncendido = sensoresFiltrados.some(s => s.estado === 1);
-      const nuevoEstado = algunoEncendido ? 0 : 1;
+      // Determinar nuevo estado según la lógica especificada:
+      // - Si TODAS las luces están OFF (0) → encender TODAS
+      // - Si HAY 1 o más luces ON (1) → apagar SOLO las que están ON
+      const todasApagadas = sensoresFiltrados.every(s => s.estado === 0);
       
-      // Actualizar todos los sensores de ese tipo
+      let sensoresAActualizar = [];
+      
+      if (todasApagadas) {
+        // Caso 1: Todas las luces OFF → encender TODAS
+        sensoresAActualizar = sensoresFiltrados.map(s => ({
+          id: s.id,
+          nuevoEstado: 1
+        }));
+      } else {
+        // Caso 2: Hay 1 o más luces ON → apagar SOLO las que están ON
+        sensoresAActualizar = sensoresFiltrados
+          .filter(s => s.estado === 1) // Solo las que están encendidas
+          .map(s => ({
+            id: s.id,
+            nuevoEstado: 0
+          }));
+      }
+      
+      // Actualizar solo los sensores necesarios
       await Promise.all(
-        sensoresFiltrados.map(sensor => 
-          sensorService.updateEstado(sensor.id, nuevoEstado)
+        sensoresAActualizar.map(({ id, nuevoEstado }) => 
+          sensorService.updateEstado(id, nuevoEstado)
         )
       );
       
