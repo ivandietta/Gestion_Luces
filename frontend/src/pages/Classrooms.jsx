@@ -146,7 +146,7 @@ const Classrooms = () => {
     };
   }, [socket]);
 
-  // Función para verificar si un aula está online
+  // Función para verificar si un aula está online (máximo 15 segundos sin señal)
   const isOnline = (aula) => {
     if (!aula || aula.isOffline !== undefined) {
       return !aula?.isOffline;
@@ -154,8 +154,8 @@ const Classrooms = () => {
     if (!aula.ultima_senal) return false;
     const now = new Date();
     const signalDate = new Date(aula.ultima_senal);
-    const diffMinutes = (now - signalDate) / 60000;
-    return diffMinutes < 2;
+    const diffSeconds = (now - signalDate) / 1000;
+    return diffSeconds < 15; // 15 segundos máximo
   };
 
   // Filtrar aulas en el cliente (como en Users.jsx)

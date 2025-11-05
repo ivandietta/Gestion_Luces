@@ -22,13 +22,13 @@ export function useAulaSensors(aulaId, onSensorUpdate) {
   const [loadingSensores, setLoadingSensores] = useState(false);
   const sensoresInitialLoadedRef = useRef(false);
 
-  // Verificar si el aula está online
+  // Verificar si el aula está online (máximo 15 segundos sin señal)
   const isOnline = useCallback((lastSignal) => {
     if (!lastSignal) return false;
     const now = new Date();
     const signalDate = new Date(lastSignal);
-    const diffMinutes = (now - signalDate) / 60000;
-    return diffMinutes < 2;
+    const diffSeconds = (now - signalDate) / 1000;
+    return diffSeconds < 15; // 15 segundos máximo
   }, []);
 
   // Cargar datos del aula
@@ -108,10 +108,10 @@ export function useAulaSensors(aulaId, onSensorUpdate) {
   useEffect(() => {
     loadAulaData(true);
     
-    // Polling para actualizar estado del aula cada 10 segundos
+    // Polling para actualizar estado del aula cada 5 segundos (más frecuente para detectar offline rápido)
     const aulaPollingInterval = setInterval(() => {
       loadAulaData(false);
-    }, 10000);
+    }, 5000);
     
     return () => clearInterval(aulaPollingInterval);
   }, [loadAulaData]);
