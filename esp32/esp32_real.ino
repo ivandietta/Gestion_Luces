@@ -12,8 +12,8 @@ struct WiFiNetwork {
 };
 
 WiFiNetwork wifiNetworks[] = {
-  {"Personal-388-2.4GHz", "01424678639"},
-  {"iPhone", "Joagenero03"}
+  {"iPhone", "Joagenero03"},
+  {"Redmi Note 9S","mauri1998"}
 };
 
 const int numNetworks = sizeof(wifiNetworks) / sizeof(wifiNetworks[0]);
@@ -285,9 +285,9 @@ void readSensors() {
   // Leer sensor de movimiento
   bool motionDetected = digitalRead(MOTION_SENSOR_PIN);
   
-  // Leer sensores de ventanas (HIGH = abierta, LOW = cerrada)
-  bool window1Open = digitalRead(WINDOW_SWITCH1_PIN) == HIGH;
-  bool window2Open = digitalRead(WINDOW_SWITCH2_PIN) == HIGH;
+  // Leer sensores de ventanas (INVERTIDO: HIGH = cerrada, LOW = abierta)
+  bool window1Open = digitalRead(WINDOW_SWITCH1_PIN) == LOW;
+  bool window2Open = digitalRead(WINDOW_SWITCH2_PIN) == LOW;
   
   // Actualizar timer de movimiento
   if (motionDetected) {
@@ -464,13 +464,14 @@ void sendDataToBackend() {
   
   // ========== SENSORES DE VENTANAS - SOLO LECTURA ==========
   // Detectan si la ventana física está abierta o cerrada
+  // INVERTIDO: HIGH = cerrada (0), LOW = abierta (1)
   JsonObject vent1 = sensores.createNestedObject();
   vent1["pin"] = 22;
-  vent1["estado"] = digitalRead(WINDOW_SWITCH1_PIN) == HIGH ? 1 : 0; // 1 = abierta
+  vent1["estado"] = digitalRead(WINDOW_SWITCH1_PIN) == HIGH ? 0 : 1; // Invertido: 1 = abierta, 0 = cerrada
   
   JsonObject vent2 = sensores.createNestedObject();
   vent2["pin"] = 23;
-  vent2["estado"] = digitalRead(WINDOW_SWITCH2_PIN) == HIGH ? 1 : 0;
+  vent2["estado"] = digitalRead(WINDOW_SWITCH2_PIN) == HIGH ? 0 : 1; // Invertido: 1 = abierta, 0 = cerrada
   
   // ========== ESTADO DE LOS RELÉS (LUCES) ==========
   // IMPORTANTE: Los relés se controlan con los pines 32 y 33 desde la APP
