@@ -182,30 +182,45 @@ router.post('/auto-off', async (req, res) => {
       );
 
       if (sensor && estado === 0) { // Solo procesar apagados
-        // Actualizar estado del sensor
-        await Sensor.updateEstado(sensor.id, estado);
+        // Verificar si hay cambio real de estado
+        const estadoCambio = sensor.estado !== estado;
         
-        // Crear registro tipo "automatico"
-        await Registro.create({
-          id_sensor: sensor.id,
-          tipo_actuador: 'automatico',
-          id_usuario: null,
-          estado: estado
-        });
-        
-        console.log(`💤 Apagado automático: Pin ${pin} (30s sin movimiento)`);
-        
-        // Notificar vía WebSocket
-        const io = req.app.get('socketio');
-        if (io) {
-          io.emit('sensorUpdate', {
-            id: sensor.id,
-            id_aula: aula.id,
-            pin,
-            estado,
-            tipo: sensor.tipo,
-            automatico: true // Flag para indicar que fue automático
+        if (estadoCambio) {
+          // Actualizar estado del sensor
+          await Sensor.updateEstado(sensor.id, estado);
+          
+          // Verificar si este apagado corresponde a un comando pendiente de usuario
+          // (en caso de que el usuario haya presionado "apagar" justo antes del timeout automático)
+          const usuarioId = recentChanges.consumePendingCommand(sensor.id);
+          
+          const tipoActuador = usuarioId ? 'usuario' : 'automatico';
+          
+          // Crear registro
+          await Registro.create({
+            id_sensor: sensor.id,
+            tipo_actuador: tipoActuador,
+            id_usuario: usuarioId, // Será el ID del usuario si vino de la app, null si es automático
+            estado: estado
           });
+          
+          if (usuarioId) {
+            console.log(`💤 Apagado: Pin ${pin} (confirmado como USUARIO en lugar de automático)`);
+          } else {
+            console.log(`💤 Apagado automático: Pin ${pin} (30s sin movimiento)`);
+          }
+          
+          // Notificar vía WebSocket
+          const io = req.app.get('socketio');
+          if (io) {
+            io.emit('sensorUpdate', {
+              id: sensor.id,
+              id_aula: aula.id,
+              pin,
+              estado,
+              tipo: sensor.tipo,
+              automatico: !usuarioId // Solo es automático si no hay usuario
+            });
+          }
         }
       }
     }
