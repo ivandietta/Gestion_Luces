@@ -57,13 +57,23 @@ router.post('/data', async (req, res) => {
         
         // Crear registro SOLO si el estado cambió realmente
         if (estadoCambio) {
+          // Verificar si este cambio corresponde a un comando pendiente de usuario
+          const usuarioId = recentChanges.consumePendingCommand(sensor.id);
+          
+          const tipoActuador = usuarioId ? 'usuario' : 'externo';
+          
           await Registro.create({
             id_sensor: sensor.id,
-            tipo_actuador: 'externo', // El ESP32 detectó un cambio (manual o automático)
-            id_usuario: null,
+            tipo_actuador: tipoActuador,
+            id_usuario: usuarioId, // Será el ID del usuario si vino de la app, null si es externo
             estado: estado
           });
-          console.log(`📝 Registro creado: Pin ${pin} cambió a ${estado === 1 ? 'ON' : 'OFF'} (confirmado por ESP32)`);
+          
+          if (usuarioId) {
+            console.log(`📝 Registro creado: Pin ${pin} cambió a ${estado === 1 ? 'ON' : 'OFF'} (USUARIO confirmado)`);
+          } else {
+            console.log(`📝 Registro creado: Pin ${pin} cambió a ${estado === 1 ? 'ON' : 'OFF'} (EXTERNO - interruptor físico o automático)`);
+          }
         } else {
           console.log(`⏭️ Pin ${pin}: Sin cambio (ya estaba en ${estado === 1 ? 'ON' : 'OFF'})`);
         }

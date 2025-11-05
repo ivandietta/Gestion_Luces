@@ -293,16 +293,11 @@ router.patch('/:id/estado', async (req, res) => {
     };
     commandQueue.add(aula.ip, comando);
     
-    // Registrar este cambio iniciado por usuario (para tracking, NO es registro en BD)
-    recentChanges.add(aula.id, {
-      sensorId: parseInt(id),
-      estado: estado,
-      usuarioId: req.user.id,
-      tipo: 'comando_pendiente'
-    });
+    // Registrar comando pendiente de USUARIO (esperamos confirmación del ESP32 en 5 seg)
+    recentChanges.addPendingCommand(parseInt(id), req.user.id);
     
     // NO crear registro aquí - solo cuando el ESP32 confirme el cambio
-    console.log(`  � Comando enviado a cola: Pin ${sensorAntes.pin} → ${estado === 1 ? 'ON' : 'OFF'} (esperando confirmación)`);
+    console.log(`  📤 Comando enviado: Pin ${sensorAntes.pin} → ${estado === 1 ? 'ON' : 'OFF'} (esperando confirmación de usuario ${req.user.legajo})`);
     
     // Enviar comando vía WebSocket en tiempo real (si el ESP32 está conectado)
     const io = req.app.get('socketio');
