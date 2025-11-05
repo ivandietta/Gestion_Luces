@@ -285,9 +285,9 @@ void readSensors() {
   // Leer sensor de movimiento
   bool motionDetected = digitalRead(MOTION_SENSOR_PIN);
   
-  // Leer sensores de ventanas (HIGH = abierta, LOW = cerrada)
-  bool window1Open = digitalRead(WINDOW_SWITCH1_PIN) == HIGH;
-  bool window2Open = digitalRead(WINDOW_SWITCH2_PIN) == HIGH;
+  // Leer sensores de ventanas (INVERTIDO: HIGH = cerrada, LOW = abierta)
+  bool window1Open = digitalRead(WINDOW_SWITCH1_PIN) == LOW;
+  bool window2Open = digitalRead(WINDOW_SWITCH2_PIN) == LOW;
   
   // Actualizar timer de movimiento
   if (motionDetected) {
@@ -445,16 +445,17 @@ void sendDataToBackend() {
   
   JsonArray sensores = doc.createNestedArray("sensores");
   
-  // ========== ESTADO REAL DE LAS LUCES (RELÉS) ==========
-  // IMPORTANTE: Enviamos el estado de los relés (26 y 27) como si fueran los pines lógicos (32 y 33)
-  // porque la BD está configurada así
+  // ========== SENSORES DE LUZ (LDR) - SOLO LECTURA ==========
+  // Estos sensores DETECTAN luz ambiente, NO controlan los relés
   JsonObject luz1 = sensores.createNestedObject();
-  luz1["pin"] = 32;  // Pin lógico en BD
-  luz1["estado"] = relay1State ? 1 : 0;  // Estado REAL del relé 1 (pin físico 26)
+  luz1["pin"] = 32;
+  int rawLight1 = analogRead(LDR1_PIN);
+  luz1["estado"] = rawLight1 < 500 ? 1 : 0; // Umbral 500: 1 = foco encendido, 0 = solo luz natural
   
   JsonObject luz2 = sensores.createNestedObject();
-  luz2["pin"] = 33;  // Pin lógico en BD
-  luz2["estado"] = relay2State ? 1 : 0;  // Estado REAL del relé 2 (pin físico 27)
+  luz2["pin"] = 33;
+  int rawLight2 = analogRead(LDR2_PIN);
+  luz2["estado"] = rawLight2 < 500 ? 1 : 0; // Umbral 500: 1 = foco encendido, 0 = solo luz natural
   
   // ========== SENSOR DE MOVIMIENTO - SOLO LECTURA ==========
   JsonObject motion = sensores.createNestedObject();
@@ -463,13 +464,14 @@ void sendDataToBackend() {
   
   // ========== SENSORES DE VENTANAS - SOLO LECTURA ==========
   // Detectan si la ventana física está abierta o cerrada
+  // INVERTIDO: HIGH = cerrada (0), LOW = abierta (1)
   JsonObject vent1 = sensores.createNestedObject();
   vent1["pin"] = 22;
-  vent1["estado"] = digitalRead(WINDOW_SWITCH1_PIN) == HIGH ? 1 : 0; // 1 = abierta
+  vent1["estado"] = digitalRead(WINDOW_SWITCH1_PIN) == HIGH ? 0 : 1; // Invertido: 1 = abierta, 0 = cerrada
   
   JsonObject vent2 = sensores.createNestedObject();
   vent2["pin"] = 23;
-  vent2["estado"] = digitalRead(WINDOW_SWITCH2_PIN) == HIGH ? 1 : 0;
+  vent2["estado"] = digitalRead(WINDOW_SWITCH2_PIN) == HIGH ? 0 : 1; // Invertido: 1 = abierta, 0 = cerrada
   
   // ========== ESTADO DE LOS RELÉS (LUCES) ==========
   // IMPORTANTE: Los relés se controlan con los pines 32 y 33 desde la APP
