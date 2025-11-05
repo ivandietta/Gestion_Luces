@@ -491,16 +491,18 @@ void setup() {
   Serial.println("\n========== CONECTANDO WEBSOCKET ==========");
   
   // IMPORTANTE: Para HTTPS (Railway), usar beginSSL en vez de begin
-  // Comentar/descomentar según uses producción o local
+  // Socket.IO v4 usa EIO=3 por defecto, probamos sin especificar versión
   
   // PRODUCCIÓN (Railway - HTTPS)
-  webSocket.beginSSL(serverHost, serverPort, "/socket.io/?EIO=4&transport=websocket");
+  webSocket.beginSSL(serverHost, serverPort, "/socket.io/?transport=websocket");
   
   // LOCAL (HTTP)
-  // webSocket.begin(serverHost, serverPort, "/socket.io/?EIO=4&transport=websocket");
+  // webSocket.begin(serverHost, serverPort, "/socket.io/?transport=websocket");
   
   webSocket.onEvent(webSocketEvent);
   webSocket.setReconnectInterval(5000);
+  webSocket.enableHeartbeat(15000, 3000, 2); // ping cada 15s, timeout 3s, 2 reintentos
+  
   Serial.println("WebSocket iniciado");
   Serial.print("Conectando a: wss://");
   Serial.print(serverHost);
