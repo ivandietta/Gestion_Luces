@@ -8,7 +8,7 @@ import { usePendingState } from './usePendingState';
  * @returns {Object} - { toggleAulaSensors, isPending, clearPending }
  */
 export function useAulaControl() {
-  const { setPending, clearPending, isPending } = usePendingState(5000);
+  const { setPending, clearPending, isPending } = usePendingState(20000); // 20 segundos de espera
 
   const toggleAulaSensors = useCallback(async (aulaId, sensorType, isOnline = true) => {
     // Si está offline o ya está pendiente, no hacer nada

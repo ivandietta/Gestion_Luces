@@ -3,10 +3,10 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 /**
  * Hook personalizado para manejar estados pendientes con timeout automático
  * 
- * @param {number} timeout - Tiempo en milisegundos antes de limpiar el estado pendiente (default: 5000)
+ * @param {number} timeout - Tiempo en milisegundos antes de limpiar el estado pendiente (default: 20000)
  * @returns {Object} - { pendingItems, setPending, clearPending, isPending }
  */
-export function usePendingState(timeout = 5000) {
+export function usePendingState(timeout = 20000) {
   const [pendingItems, setPendingItems] = useState({});
   const timersRef = useRef({});
 

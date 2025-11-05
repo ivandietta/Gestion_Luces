@@ -9,7 +9,7 @@ import { usePendingState } from './usePendingState';
  * @returns {Object} - { toggleSensor, isPending, clearPending }
  */
 export function useSensorControl(onUpdate) {
-  const { setPending, clearPending, isPending } = usePendingState(5000);
+  const { setPending, clearPending, isPending } = usePendingState(20000); // 20 segundos de espera
 
   const toggleSensor = useCallback(async (sensorId, currentState, isOnline = true) => {
     // Si está offline o ya está pendiente, no hacer nada
