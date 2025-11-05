@@ -3,6 +3,10 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <WebSocketsClient_Generic.h>
+#include <WiFiClientSecure.h>
+
+// Cliente SSL inseguro (sin validación de certificados)
+WiFiClientSecure wifiClientSecure;
 
 // ========== CONFIGURACIÓN WIFI (MÚLTIPLES REDES) ==========
 // El ESP32 intentará conectarse a la primera red disponible
@@ -160,65 +164,91 @@ void connectWiFi() {
 void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
   switch(type) {
     case WStype_DISCONNECTED:
-      Serial.println("⚠ WebSocket desconectado");
+      Serial.printf("[WSc] Desconectado!\n");
       socketConnected = false;
       break;
       
     case WStype_CONNECTED:
       {
-        Serial.println("✓ WebSocket conectado");
+        Serial.printf("[WSc] Conectado a URL: %s\n", payload);
         socketConnected = true;
+        
+        // Socket.IO v4 requiere handshake
+        // No enviamos nada aquí, esperamos el mensaje "0" del servidor
       }
       break;
       
     case WStype_TEXT:
       {
+        Serial.printf("[WSc] Mensaje recibido: %s\n", payload);
         String msg = String((char*)payload);
         
-        // Socket.IO handshake - mensaje "0" con configuración
+        // Socket.IO handshake - mensaje "0{...}" con configuración
         if (msg.startsWith("0")) {
-          Serial.println("✓ WebSocket handshake OK");
+          Serial.println("[WSc] ✓ Handshake recibido del servidor");
+          
           // Después del handshake, unirse a la sala
-          String joinMsg = "[\"join\",{\"room\":\"esp32:" + espIP + "\"}]";
-          String fullMsg = "42" + joinMsg;
-          webSocket.sendTXT(fullMsg);
-          Serial.println("📤 Join enviado: esp32:" + espIP);
+          String joinMsg = "42[\"join\",{\"room\":\"esp32:" + espIP + "\"}]";
+          webSocket.sendTXT(joinMsg);
+          Serial.printf("[WSc] → Join enviado: esp32:%s\n", espIP.c_str());
           return;
         }
         
-        // Socket.IO usa prefijos: 42 = evento
+        // Socket.IO usa prefijos: 42 = evento con datos
         if (msg.startsWith("42")) {
-          msg = msg.substring(2); // Remover prefijo
+          msg = msg.substring(2); // Remover prefijo "42"
+          
+          Serial.printf("[WSc] Parseando evento: %s\n", msg.c_str());
           
           // Parsear comando
-          DynamicJsonDocument doc(512);
+          DynamicJsonDocument doc(1024);
           DeserializationError error = deserializeJson(doc, msg);
           
           if (!error) {
             const char* eventName = doc[0];
+            Serial.printf("[WSc] Evento: %s\n", eventName);
             
             if (strcmp(eventName, "esp32:command") == 0) {
               JsonObject command = doc[1];
-              Serial.println("📥 Comando recibido desde app");
+              Serial.println("[WSc] ✓ Comando recibido desde app");
               processCommand(command);
             } else if (strcmp(eventName, "joined") == 0) {
-              Serial.println("✅ Unido a sala WebSocket");
+              Serial.println("[WSc] ✅ Confirmación: Unido a sala WebSocket");
             }
+          } else {
+            Serial.printf("[WSc] ✗ Error parseando JSON: %s\n", error.c_str());
           }
+        }
+        
+        // Socket.IO pings (mensaje "2")
+        if (msg == "2") {
+          Serial.println("[WSc] ← Ping del servidor");
+          webSocket.sendTXT("3"); // Responder con pong
         }
       }
       break;
       
+    case WStype_BIN:
+      Serial.printf("[WSc] Datos binarios recibidos: %u bytes\n", length);
+      break;
+      
     case WStype_ERROR:
-      Serial.println("✗ Error en WebSocket");
+      Serial.printf("[WSc] ✗ ERROR\n");
+      break;
+      
+    case WStype_FRAGMENT_TEXT_START:
+    case WStype_FRAGMENT_BIN_START:
+    case WStype_FRAGMENT:
+    case WStype_FRAGMENT_FIN:
+      Serial.printf("[WSc] Fragmento recibido\n");
       break;
       
     case WStype_PING:
-      Serial.println("⚡ Ping recibido");
+      Serial.println("[WSc] ← Ping");
       break;
       
     case WStype_PONG:
-      Serial.println("⚡ Pong recibido");
+      Serial.println("[WSc] → Pong");
       break;
   }
 }
@@ -441,12 +471,33 @@ void sendDataToBackend() {
   String jsonString;
   serializeJson(doc, jsonString);
   
-  // Enviar HTTP POST
+  // Enviar HTTP POST y recibir comandos pendientes
   http.begin(url);
   http.addHeader("Content-Type", "application/json");
-  http.POST(jsonString);
-  http.end();
+  int httpCode = http.POST(jsonString);
   
+  // Procesar respuesta y comandos pendientes
+  if (httpCode == 200) {
+    String response = http.getString();
+    DynamicJsonDocument responseDoc(2048);
+    DeserializationError error = deserializeJson(responseDoc, response);
+    
+    if (!error && responseDoc.containsKey("comandos")) {
+      JsonArray comandos = responseDoc["comandos"];
+      
+      if (comandos.size() > 0) {
+        Serial.printf("📥 Recibidos %d comandos pendientes vía HTTP\n", comandos.size());
+        
+        for (JsonObject comando : comandos) {
+          if (comando.containsKey("pin")) {
+            processCommand(comando);
+          }
+        }
+      }
+    }
+  }
+  
+  http.end();
   lastSendTime = millis();
 }
 
@@ -490,21 +541,20 @@ void setup() {
   // Conectar WebSocket
   Serial.println("\n========== CONECTANDO WEBSOCKET ==========");
   
-  // IMPORTANTE: Para HTTPS (Railway), usar beginSSL en vez de begin
-  // Socket.IO v4 usa EIO=3 por defecto, probamos sin especificar versión
+  // IMPORTANTE: Railway usa HTTPS, pero Socket.IO soporta upgrade desde HTTP
+  // Configuramos el transporte para permitir upgrade automático
   
-  // PRODUCCIÓN (Railway - HTTPS)
-  webSocket.beginSSL(serverHost, serverPort, "/socket.io/?transport=websocket");
+  // PRODUCCIÓN (Railway - permitir upgrade HTTP -> WebSocket)
+  webSocket.beginSSL(serverHost, serverPort, "/socket.io/?EIO=4&transport=polling");
+  webSocket.setReconnectInterval(5000);
   
-  // LOCAL (HTTP)
-  // webSocket.begin(serverHost, serverPort, "/socket.io/?transport=websocket");
+  // LOCAL (HTTP) - descomentar para desarrollo
+  // webSocket.begin(serverHost, serverPort, "/socket.io/?EIO=4&transport=polling");
   
   webSocket.onEvent(webSocketEvent);
-  webSocket.setReconnectInterval(5000);
-  webSocket.enableHeartbeat(15000, 3000, 2); // ping cada 15s, timeout 3s, 2 reintentos
   
-  Serial.println("WebSocket iniciado");
-  Serial.print("Conectando a: wss://");
+  Serial.println("Socket.IO iniciado (HTTPS polling con upgrade automático)");
+  Serial.print("Conectando a: https://");
   Serial.print(serverHost);
   Serial.print(":");
   Serial.println(serverPort);

@@ -291,29 +291,32 @@ router.patch('/:id/estado', async (req, res) => {
     
     console.log(`  📤 Enviando comando a ESP32: Pin ${sensorAntes.pin} → ${estado === 1 ? 'ON' : 'OFF'} (usuario ${req.user.legajo})`);
     
-    // Enviar comando SOLO vía WebSocket
+    // === SISTEMA DUAL: HTTP Polling + WebSocket ===
+    const commandQueue = require('../commandQueue');
+    const command = {
+      pin: sensorAntes.pin  // Solo enviamos el pin, el ESP32 hace TOGGLE
+    };
+    
+    // 1. SIEMPRE agregar a cola HTTP (fallback confiable)
+    commandQueue.add(aula.ip, command);
+    console.log(`📥 Comando agregado a cola HTTP para ${aula.ip}`);
+    
+    // 2. Intentar enviar por WebSocket si está conectado (respuesta más rápida)
     const io = req.app.get('socketio');
+    let sentViaWebSocket = false;
+    
     if (io) {
-      const command = {
-        pin: sensorAntes.pin  // Solo enviamos el pin, el ESP32 hace TOGGLE
-      };
-      
       const roomName = `esp32:${aula.ip}`;
       const room = io.sockets.adapter.rooms.get(roomName);
       const clientsInRoom = room ? room.size : 0;
       
-      console.log(`⚡ WebSocket → ${roomName} (${clientsInRoom} cliente(s)): TOGGLE Pin ${command.pin}`);
-      
-      if (clientsInRoom === 0) {
-        console.log(`⚠️ ADVERTENCIA: ESP32 no conectado al WebSocket`);
-        return res.status(503).json({
-          success: false,
-          error: 'ESP32 no conectado. Verifica que el dispositivo esté encendido y conectado a WiFi.',
-          offline: true
-        });
+      if (clientsInRoom > 0) {
+        io.to(roomName).emit('esp32:command', command);
+        console.log(`⚡ WebSocket → ${roomName} (${clientsInRoom} cliente(s)): TOGGLE Pin ${command.pin}`);
+        sentViaWebSocket = true;
+      } else {
+        console.log(`⚠️ WebSocket desconectado, usando HTTP polling`);
       }
-      
-      io.to(roomName).emit('esp32:command', command);
     }
     
     // Responder sin actualizar BD (esperamos confirmación del ESP32 vía POST /esp32/data)
@@ -321,6 +324,7 @@ router.patch('/:id/estado', async (req, res) => {
       success: true,
       message: 'Comando enviado al ESP32. Esperando confirmación...',
       pending: true,
+      via: sentViaWebSocket ? 'websocket+http' : 'http-only',
       data: sensorAntes
     });
 

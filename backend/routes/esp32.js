@@ -86,14 +86,19 @@ router.post('/data', async (req, res) => {
       }
     }
 
-    // Responder exitosamente (los comandos ahora se envían solo por WebSocket)
+    // Obtener comandos pendientes de la cola HTTP
+    const commandQueue = require('../commandQueue');
+    const comandosPendientes = commandQueue.getAndClear(ip);
+
+    // Responder exitosamente con comandos pendientes
     res.json({
       success: true,
       message: 'Datos recibidos correctamente',
       aula: {
         id: aula.id,
         nombre: aula.nombre
-      }
+      },
+      comandos: comandosPendientes  // Enviar comandos pendientes al ESP32
     });
 
   } catch (error) {
