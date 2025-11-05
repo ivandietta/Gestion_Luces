@@ -11,9 +11,11 @@ router.post('/data', async (req, res) => {
   try {
     const { ip, sensores } = req.body;
     
-    console.log(`\n📡 === DATOS RECIBIDOS DEL ESP32 ===`);
+    const timestamp = new Date().toISOString();
+    console.log(`\n📡 === DATOS RECIBIDOS DEL ESP32 [${timestamp}] ===`);
     console.log(`IP: ${ip}`);
-    console.log(`Sensores:`, JSON.stringify(sensores, null, 2));
+    console.log(`Cantidad de sensores en array: ${sensores ? sensores.length : 0}`);
+    console.log(`Sensores completos:`, JSON.stringify(sensores, null, 2));
 
     // Validar datos
     if (!ip || !sensores || !Array.isArray(sensores)) {
@@ -38,9 +40,12 @@ router.post('/data', async (req, res) => {
     // Actualizar última señal (heartbeat)
     await Aula.updateUltimaSenal(aula.id);
 
+    console.log(`\n🔄 Procesando ${sensores.length} sensores para aula ID ${aula.id}...`);
+    
     // Actualizar estados de sensores
     for (const sensorData of sensores) {
       const { pin, estado } = sensorData;
+      console.log(`\n  → Procesando Pin ${pin}, Estado=${estado}`);
       
       // Buscar sensor por aula_id y pin
       const sensor = await db.get(
@@ -97,6 +102,8 @@ router.post('/data', async (req, res) => {
         console.log(`⚠️ Sensor NO encontrado en BD: Pin ${pin} para aula ${aula.id}`);
       }
     }
+
+    console.log(`\n✅ Procesamiento completado para aula ID ${aula.id}\n`);
 
     // Verificar si hay comandos pendientes
     const commands = commandQueue.getAndClear(ip);
