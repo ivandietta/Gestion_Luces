@@ -118,8 +118,8 @@ async function initializeServer() {
     app.use('/auth', authRoutes);
     app.use('/aulas', aulaRoutes);
     app.use('/sensores', sensorRoutes);
-    app.use('/esp32', esp32Routes); // Rutas para ESP32 (sin autenticación)
-    app.use('/api/registros', registroRoutes); // Rutas para registros (con autenticación)
+    app.use('/esp32', esp32Routes);
+    app.use('/api/registros', registroRoutes);
 
     // Socket.IO connection handling
     io.on('connection', (socket) => {
