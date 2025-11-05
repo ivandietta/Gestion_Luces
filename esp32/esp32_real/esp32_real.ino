@@ -630,20 +630,6 @@ void loop() {
   // Leer sensores y enviar datos si hay cambios
   readSensors();
   
-  // Imprimir valores LDR cada 5 segundos
-  unsigned long currentTime = millis();
-  if (currentTime - lastLDRPrintTime >= LDR_PRINT_INTERVAL) {
-    lastLDRPrintTime = currentTime;
-    int ldr1Value = analogRead(LDR1_PIN);
-    int ldr2Value = analogRead(LDR2_PIN);
-    Serial.println("════════════════════════════════");
-    Serial.print("💡 LDR1 (Pin 32): ");
-    Serial.print(ldr1Value);
-    Serial.print(" | LDR2 (Pin 33): ");
-    Serial.println(ldr2Value);
-    Serial.println("════════════════════════════════");
-  }
-  
   // Verificar apagado automático
   checkAutoOff();
   
