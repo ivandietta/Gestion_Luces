@@ -86,17 +86,14 @@ router.post('/data', async (req, res) => {
       }
     }
 
-    // Verificar si hay comandos pendientes
-    const commands = commandQueue.getAndClear(ip);
-
+    // Responder exitosamente (los comandos ahora se envían solo por WebSocket)
     res.json({
       success: true,
       message: 'Datos recibidos correctamente',
       aula: {
         id: aula.id,
         nombre: aula.nombre
-      },
-      comandos: commands // IMPORTANTE: debe ser "comandos" no "commands"
+      }
     });
 
   } catch (error) {

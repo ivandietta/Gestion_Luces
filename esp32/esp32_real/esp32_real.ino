@@ -444,23 +444,9 @@ void sendDataToBackend() {
   // Enviar HTTP POST
   http.begin(url);
   http.addHeader("Content-Type", "application/json");
-  
-  int httpCode = http.POST(jsonString);
-  
-  if (httpCode == 200) {
-    String response = http.getString();
-    DynamicJsonDocument respDoc(2048);
-    DeserializationError error = deserializeJson(respDoc, response);
-    
-    if (!error && respDoc.containsKey("comandos")) {
-      JsonArray comandos = respDoc["comandos"];
-      for (JsonObject cmd : comandos) {
-        processCommand(cmd);
-      }
-    }
-  }
-  
+  http.POST(jsonString);
   http.end();
+  
   lastSendTime = millis();
 }
 
