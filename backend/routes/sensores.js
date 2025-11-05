@@ -293,44 +293,33 @@ router.patch('/:id/estado', async (req, res) => {
     };
     commandQueue.add(aula.ip, comando);
     
-    // Registrar este cambio para evitar duplicados cuando el ESP32 confirme
+    // Registrar este cambio iniciado por usuario (para tracking, NO es registro en BD)
     recentChanges.add(aula.id, {
       sensorId: parseInt(id),
       estado: estado,
-      usuarioId: req.user.id
+      usuarioId: req.user.id,
+      tipo: 'comando_pendiente'
     });
     
-    // Crear registro tipo "usuario" (cambio manual desde la app)
-    try {
-      await Registro.create({
-        id_sensor: id,
-        tipo_actuador: 'usuario',
-        id_usuario: req.user.id, // ID del usuario autenticado
-        estado: estado
-      });
-      console.log(`  📝 Registro creado: Cambio por usuario ${req.user.legajo} en sensor ${id} a estado ${estado}`);
-    } catch (error) {
-      console.error('  ⚠️ Error creando registro:', error.message);
-      // No fallar el envío del comando por error en registro
-    }
+    // NO crear registro aquí - solo cuando el ESP32 confirme el cambio
+    console.log(`  � Comando enviado a cola: Pin ${sensorAntes.pin} → ${estado === 1 ? 'ON' : 'OFF'} (esperando confirmación)`);
     
     // Enviar comando vía WebSocket en tiempo real (si el ESP32 está conectado)
     const io = req.app.get('socketio');
     if (io) {
       const command = {
-        pin: sensorAntes.pin,
-        estado: estado  // 0 o 1 - El ESP32 espera este formato
+        pin: sensorAntes.pin  // Solo enviamos el pin, el ESP32 hace TOGGLE
       };
       
       const roomName = `esp32:${aula.ip}`;
       const room = io.sockets.adapter.rooms.get(roomName);
       const clientsInRoom = room ? room.size : 0;
       
-      console.log(`⚡ Enviando comando a sala ${roomName} (${clientsInRoom} cliente(s)):`, command);
+      console.log(`⚡ Enviando comando TOGGLE a sala ${roomName} (${clientsInRoom} cliente(s)): Pin ${command.pin}`);
       io.to(roomName).emit('esp32:command', command);
     }
     
-    // Responder sin actualizar BD (esperamos confirmación del ESP32)
+    // Responder sin actualizar BD (esperamos confirmación del ESP32 vía HTTP POST)
     res.json({
       success: true,
       message: 'Comando enviado al ESP32. Esperando confirmación...',

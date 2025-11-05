@@ -445,17 +445,16 @@ void sendDataToBackend() {
   
   JsonArray sensores = doc.createNestedArray("sensores");
   
-  // ========== SENSORES DE LUZ (LDR) - SOLO LECTURA ==========
-  // Estos sensores DETECTAN luz ambiente, NO controlan los relés
+  // ========== ESTADO REAL DE LAS LUCES (RELÉS) ==========
+  // IMPORTANTE: Enviamos el estado de los relés (26 y 27) como si fueran los pines lógicos (32 y 33)
+  // porque la BD está configurada así
   JsonObject luz1 = sensores.createNestedObject();
-  luz1["pin"] = 32;
-  int rawLight1 = analogRead(LDR1_PIN);
-  luz1["estado"] = rawLight1 < 500 ? 1 : 0; // Umbral 500: 1 = foco encendido, 0 = solo luz natural
+  luz1["pin"] = 32;  // Pin lógico en BD
+  luz1["estado"] = relay1State ? 1 : 0;  // Estado REAL del relé 1 (pin físico 26)
   
   JsonObject luz2 = sensores.createNestedObject();
-  luz2["pin"] = 33;
-  int rawLight2 = analogRead(LDR2_PIN);
-  luz2["estado"] = rawLight2 < 500 ? 1 : 0; // Umbral 500: 1 = foco encendido, 0 = solo luz natural
+  luz2["pin"] = 33;  // Pin lógico en BD
+  luz2["estado"] = relay2State ? 1 : 0;  // Estado REAL del relé 2 (pin físico 27)
   
   // ========== SENSOR DE MOVIMIENTO - SOLO LECTURA ==========
   JsonObject motion = sensores.createNestedObject();

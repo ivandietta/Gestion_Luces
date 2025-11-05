@@ -10,6 +10,10 @@ const recentChanges = require('../recentChanges');
 router.post('/data', async (req, res) => {
   try {
     const { ip, sensores } = req.body;
+    
+    console.log(`\n📡 === DATOS RECIBIDOS DEL ESP32 ===`);
+    console.log(`IP: ${ip}`);
+    console.log(`Sensores:`, JSON.stringify(sensores, null, 2));
 
     // Validar datos
     if (!ip || !sensores || !Array.isArray(sensores)) {
@@ -48,41 +52,40 @@ router.post('/data', async (req, res) => {
         // Verificar si el estado realmente cambió
         const estadoCambio = sensor.estado !== estado;
         
-        // Actualizar estado del sensor
+        // Actualizar estado del sensor en BD
         await Sensor.updateEstado(sensor.id, estado);
         
-        // Verificar si debemos ignorar este update
-        const debeIgnorar = recentChanges.shouldIgnoreESP32Update(sensor.id, estado);
-        const esDuplicadoExterno = recentChanges.isExternalDuplicate(sensor.id, estado);
-        
-        // Crear registro solo si cambió y no es duplicado
-        if (estadoCambio && !debeIgnorar && !esDuplicadoExterno) {
+        // Crear registro SOLO si el estado cambió realmente
+        if (estadoCambio) {
           await Registro.create({
             id_sensor: sensor.id,
-            tipo_actuador: 'externo',
+            tipo_actuador: 'externo', // El ESP32 detectó un cambio (manual o automático)
             id_usuario: null,
             estado: estado
           });
-          console.log(`📝 Pin ${pin}: ${estado === 1 ? 'ON' : 'OFF'} (externo)`);
-          recentChanges.recordExternalChange(sensor.id, estado);
+          console.log(`📝 Registro creado: Pin ${pin} cambió a ${estado === 1 ? 'ON' : 'OFF'} (confirmado por ESP32)`);
+        } else {
+          console.log(`⏭️ Pin ${pin}: Sin cambio (ya estaba en ${estado === 1 ? 'ON' : 'OFF'})`);
         }
         
-        // Notificar vía WebSocket
-        const io = req.app.get('socketio');
-        if (io) {
-          io.emit('sensorUpdate', {
-            id: sensor.id,
-            id_aula: aula.id,
-            pin,
-            estado,
-            tipo: sensor.tipo
-          });
+        // Notificar vía WebSocket solo si cambió
+        if (estadoCambio) {
+          const io = req.app.get('socketio');
+          if (io) {
+            io.emit('sensorUpdate', {
+              id: sensor.id,
+              id_aula: aula.id,
+              pin,
+              estado,
+              tipo: sensor.tipo
+            });
+          }
         }
       }
     }
 
     // Verificar si hay comandos pendientes
-    const commands = commandQueue.getAndClearCommands(ip);
+    const commands = commandQueue.getAndClear(ip);
 
     res.json({
       success: true,
