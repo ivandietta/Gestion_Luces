@@ -38,10 +38,18 @@ const io = new Server(server, {
   },
   transports: ['websocket', 'polling'],
   allowEIO3: true,
+  allowEIO4: true,
   pingTimeout: 60000,
   pingInterval: 25000,
   upgradeTimeout: 30000,
-  maxHttpBufferSize: 1e6
+  maxHttpBufferSize: 1e6,
+  path: '/socket.io',
+  serveClient: false,
+  allowUpgrades: true,
+  perMessageDeflate: false,
+  // Configuración para proxies (Railway)
+  cookie: false,
+  transports: ['polling', 'websocket']  // Polling primero, luego upgrade
 });
 
 const PORT = process.env.PORT || 3003;
@@ -83,6 +91,9 @@ async function initializeServer() {
       methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
       allowedHeaders: ["Content-Type", "Authorization"]
     }));
+    
+    // CRÍTICO para Railway: Confiar en el proxy
+    app.set('trust proxy', 1);
     
     // Comprimir todas las respuestas HTTP (mejora velocidad 60-80%)
     app.use(compression());

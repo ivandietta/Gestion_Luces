@@ -538,26 +538,30 @@ void setup() {
   // Conectar WiFi
   connectWiFi();
   
-  // Conectar WebSocket
+  // Conectar WebSocket con Socket.IO
   Serial.println("\n========== CONECTANDO WEBSOCKET ==========");
   
-  // IMPORTANTE: Railway usa HTTPS, pero Socket.IO soporta upgrade desde HTTP
-  // Configuramos el transporte para permitir upgrade automático
+  // Socket.IO v4 con Engine.IO v4
+  // Iniciar con polling y permitir upgrade a WebSocket
   
-  // PRODUCCIÓN (Railway - permitir upgrade HTTP -> WebSocket)
+  // PRODUCCIÓN (Railway - HTTPS)
   webSocket.beginSSL(serverHost, serverPort, "/socket.io/?EIO=4&transport=polling");
   webSocket.setReconnectInterval(5000);
+  webSocket.setAuthorization(""); // Sin autenticación
+  
+  // Configurar extraHeaders si Railway lo requiere
+  webSocket.setExtraHeaders("User-Agent: ESP32-WebSocket\r\n");
   
   // LOCAL (HTTP) - descomentar para desarrollo
   // webSocket.begin(serverHost, serverPort, "/socket.io/?EIO=4&transport=polling");
   
   webSocket.onEvent(webSocketEvent);
   
-  Serial.println("Socket.IO iniciado (HTTPS polling con upgrade automático)");
+  Serial.println("Socket.IO iniciado (polling → WebSocket upgrade)");
   Serial.print("Conectando a: https://");
   Serial.print(serverHost);
-  Serial.print(":");
-  Serial.println(serverPort);
+  Serial.println("/socket.io/");
+  Serial.println("Modo: Polling con upgrade automático a WebSocket");
   
   // Inicializar timer de movimiento
   lastMotionTime = millis();
