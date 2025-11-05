@@ -47,15 +47,20 @@ router.post('/data', async (req, res) => {
         // Verificar si el estado realmente cambió
         const estadoCambio = sensor.estado !== estado;
         
+        console.log(`[DEBUG] Pin ${pin}: estado anterior=${sensor.estado}, nuevo=${estado}, cambió=${estadoCambio}`);
+        
         // Actualizar estado del sensor en BD
         await Sensor.updateEstado(sensor.id, estado);
         
         // Crear registro SOLO si el estado cambió realmente
         if (estadoCambio) {
           // Verificar si este cambio corresponde a un comando pendiente de usuario
+          console.log(`[DEBUG] Verificando comando pendiente para sensor ID ${sensor.id}...`);
           const usuarioId = recentChanges.consumePendingCommand(sensor.id);
           
           const tipoActuador = usuarioId ? 'usuario' : 'externo';
+          
+          console.log(`[DEBUG] Pin ${pin} → Tipo: ${tipoActuador}, Usuario ID: ${usuarioId}`);
           
           await Registro.create({
             id_sensor: sensor.id,

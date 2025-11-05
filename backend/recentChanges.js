@@ -4,7 +4,7 @@ class RecentChanges {
     this.changes = new Map(); // Map<aulaId, Array<cambios>>
     this.pendingCommands = new Map(); // Map<sensorId, {timestamp, usuarioId}>
     this.maxChangesPerAula = 50; // Mantener últimos 50 cambios por aula
-    this.commandTimeout = 5000; // 5 segundos para confirmar comando
+    this.commandTimeout = 10000; // 10 segundos para confirmar comando (aumentado de 5 a 10)
   }
 
   // Agregar cambio reciente
