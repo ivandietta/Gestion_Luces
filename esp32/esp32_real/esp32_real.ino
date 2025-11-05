@@ -71,10 +71,6 @@ bool prevRelay2 = false;
 unsigned long lastSendTime = 0;
 const unsigned long SEND_INTERVAL = 2000; // Enviar cada 2 segundos si no hay cambios
 
-// Control de impresión de valores LDR
-unsigned long lastLDRPrintTime = 0;
-const unsigned long LDR_PRINT_INTERVAL = 5000; // Imprimir valores LDR cada 5 segundos
-
 // ========== WEBSOCKET ==========
 WebSocketsClient webSocket;
 bool socketConnected = false;
@@ -245,31 +241,13 @@ void processCommand(JsonObject command) {
   // Los comandos vienen para los pines LÓGICOS (32, 33 para luces)
   
   if (pin == 32) {
-    // Comando para Luz 1 (pin 32 lógico) → Toggle Relé 1 (pin 26 físico)
-    relay1State = !relay1State;  // Cambiar al opuesto
-    digitalWrite(RELAY1_PIN, relay1State ? LOW : HIGH); // Lógica inversa: LOW=ON
-    Serial.print("💡 Relé 1 (Pin 26): ");
-    Serial.println(relay1State ? "ENCENDIDO" : "APAGADO");
-    
-    // Reiniciar timer de movimiento si se enciende
-    if (relay1State) {
-      lastMotionTime = millis();
-    }
-    
+    relay1State = !relay1State;
+    digitalWrite(RELAY1_PIN, relay1State ? LOW : HIGH);
+    if (relay1State) lastMotionTime = millis();
   } else if (pin == 33) {
-    // Comando para Luz 2 (pin 33 lógico) → Toggle Relé 2 (pin 27 físico)
-    relay2State = !relay2State;  // Cambiar al opuesto
-    digitalWrite(RELAY2_PIN, relay2State ? LOW : HIGH); // Lógica inversa: LOW=ON
-    Serial.print("💡 Relé 2 (Pin 27): ");
-    Serial.println(relay2State ? "ENCENDIDO" : "APAGADO");
-    
-    // Reiniciar timer de movimiento si se enciende
-    if (relay2State) {
-      lastMotionTime = millis();
-    }
-  } else {
-    Serial.print("⚠️ Pin no reconocido para control: ");
-    Serial.println(pin);
+    relay2State = !relay2State;
+    digitalWrite(RELAY2_PIN, relay2State ? LOW : HIGH);
+    if (relay2State) lastMotionTime = millis();
   }
   
   // Enviar actualización inmediata al backend
@@ -313,27 +291,19 @@ void readSensors() {
   // Detectar cambios en LDRs (umbral de 100 para evitar ruido)
   if (abs(rawLight1 - prevLight1) > 100) {
     hasChanges = true;
-    Serial.print("LDR1: ");
-    Serial.println(rawLight1);
   }
   
   if (abs(rawLight2 - prevLight2) > 100) {
     hasChanges = true;
-    Serial.print("LDR2: ");
-    Serial.println(rawLight2);
   }
   
   // Detectar cambios en relés
   if (relay1State != prevRelay1) {
     hasChanges = true;
-    Serial.print("💡 Relé 1: ");
-    Serial.println(relay1State ? "ON" : "OFF");
   }
   
   if (relay2State != prevRelay2) {
     hasChanges = true;
-    Serial.print("💡 Relé 2: ");
-    Serial.println(relay2State ? "ON" : "OFF");
   }
   
   // Guardar estados previos
@@ -363,13 +333,11 @@ void checkAutoOff() {
     if (relay1State) {
       relay1State = false;
       digitalWrite(RELAY1_PIN, HIGH); // Apagar
-      Serial.println("💤 Apagado automático: Luz 1 (30s sin movimiento)");
     }
     
     if (relay2State) {
       relay2State = false;
       digitalWrite(RELAY2_PIN, HIGH); // Apagar
-      Serial.println("💤 Apagado automático: Luz 2 (30s sin movimiento)");
     }
     
     // Si se apagó alguna luz, enviar notificación de auto-off
@@ -416,22 +384,13 @@ void sendAutoOffNotification(bool relay1WasOn, bool relay2WasOn) {
   // Enviar HTTP POST
   http.begin(url);
   http.addHeader("Content-Type", "application/json");
-  
-  int httpCode = http.POST(jsonString);
-  
-  if (httpCode > 0) {
-    Serial.println("✓ Notificación auto-off enviada (HTTP " + String(httpCode) + ")");
-  } else {
-    Serial.println("✗ Error enviando auto-off: " + String(httpCode));
-  }
-  
+  http.POST(jsonString);
   http.end();
 }
 
 // ========== FUNCIÓN: ENVIAR DATOS AL BACKEND ==========
 void sendDataToBackend() {
   if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("⚠ WiFi desconectado, reintentando...");
     connectWiFi();
     return;
   }
@@ -488,29 +447,17 @@ void sendDataToBackend() {
   
   int httpCode = http.POST(jsonString);
   
-  if (httpCode > 0) {
+  if (httpCode == 200) {
     String response = http.getString();
+    DynamicJsonDocument respDoc(2048);
+    DeserializationError error = deserializeJson(respDoc, response);
     
-    // Procesar comandos pendientes de la respuesta
-    if (httpCode == 200) {
-      DynamicJsonDocument respDoc(2048);
-      DeserializationError error = deserializeJson(respDoc, response);
-      
-      if (!error && respDoc.containsKey("comandos")) {
-        JsonArray comandos = respDoc["comandos"];
-        if (comandos.size() > 0) {
-          Serial.print("📥 Recibidos ");
-          Serial.print(comandos.size());
-          Serial.println(" comando(s) pendiente(s)");
-          
-          for (JsonObject cmd : comandos) {
-            processCommand(cmd);
-          }
-        }
+    if (!error && respDoc.containsKey("comandos")) {
+      JsonArray comandos = respDoc["comandos"];
+      for (JsonObject cmd : comandos) {
+        processCommand(cmd);
       }
     }
-  } else {
-    Serial.println("✗ Error al enviar datos: " + String(httpCode));
   }
   
   http.end();

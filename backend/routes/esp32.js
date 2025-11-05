@@ -10,12 +10,6 @@ const recentChanges = require('../recentChanges');
 router.post('/data', async (req, res) => {
   try {
     const { ip, sensores } = req.body;
-    
-    const timestamp = new Date().toISOString();
-    console.log(`\n📡 === DATOS RECIBIDOS DEL ESP32 [${timestamp}] ===`);
-    console.log(`IP: ${ip}`);
-    console.log(`Cantidad de sensores en array: ${sensores ? sensores.length : 0}`);
-    console.log(`Sensores completos:`, JSON.stringify(sensores, null, 2));
 
     // Validar datos
     if (!ip || !sensores || !Array.isArray(sensores)) {
@@ -30,7 +24,6 @@ router.post('/data', async (req, res) => {
     const aula = await db.get('SELECT * FROM aulas WHERE ip = ?', [ip]);
 
     if (!aula) {
-      console.log(`⚠️ Aula NO encontrada con IP: ${ip}`);
       return res.status(404).json({
         success: false,
         error: `No se encontró aula con IP ${ip}`
@@ -39,13 +32,10 @@ router.post('/data', async (req, res) => {
 
     // Actualizar última señal (heartbeat)
     await Aula.updateUltimaSenal(aula.id);
-
-    console.log(`\n🔄 Procesando ${sensores.length} sensores para aula ID ${aula.id}...`);
     
     // Actualizar estados de sensores
     for (const sensorData of sensores) {
       const { pin, estado } = sensorData;
-      console.log(`\n  → Procesando Pin ${pin}, Estado=${estado}`);
       
       // Buscar sensor por aula_id y pin
       const sensor = await db.get(
@@ -56,8 +46,6 @@ router.post('/data', async (req, res) => {
       if (sensor) {
         // Verificar si el estado realmente cambió
         const estadoCambio = sensor.estado !== estado;
-        
-        console.log(`🔍 Sensor ID ${sensor.id} (Pin ${pin}): Estado anterior=${sensor.estado}, Nuevo=${estado}, ¿Cambió? ${estadoCambio}`);
         
         // Actualizar estado del sensor en BD
         await Sensor.updateEstado(sensor.id, estado);
@@ -72,17 +60,9 @@ router.post('/data', async (req, res) => {
           await Registro.create({
             id_sensor: sensor.id,
             tipo_actuador: tipoActuador,
-            id_usuario: usuarioId, // Será el ID del usuario si vino de la app, null si es externo
+            id_usuario: usuarioId,
             estado: estado
           });
-          
-          if (usuarioId) {
-            console.log(`📝 Registro creado: Pin ${pin} cambió a ${estado === 1 ? 'ON' : 'OFF'} (USUARIO confirmado)`);
-          } else {
-            console.log(`📝 Registro creado: Pin ${pin} cambió a ${estado === 1 ? 'ON' : 'OFF'} (EXTERNO - interruptor físico o automático)`);
-          }
-        } else {
-          console.log(`⏭️ Pin ${pin}: Sin cambio (ya estaba en ${estado === 1 ? 'ON' : 'OFF'})`);
         }
         
         // Notificar vía WebSocket solo si cambió
@@ -98,12 +78,8 @@ router.post('/data', async (req, res) => {
             });
           }
         }
-      } else {
-        console.log(`⚠️ Sensor NO encontrado en BD: Pin ${pin} para aula ${aula.id}`);
       }
     }
-
-    console.log(`\n✅ Procesamiento completado para aula ID ${aula.id}\n`);
 
     // Verificar si hay comandos pendientes
     const commands = commandQueue.getAndClear(ip);
@@ -175,14 +151,13 @@ router.post('/auto-off', async (req, res) => {
     const aula = await db.get('SELECT * FROM aulas WHERE ip = ?', [ip]);
 
     if (!aula) {
-      console.log(`⚠️ Aula NO encontrada con IP: ${ip}`);
       return res.status(404).json({
         success: false,
         error: `No se encontró aula con IP ${ip}`
       });
     }
 
-    // Procesar apagados automáticos
+    // Procesar TODOS los apagados automáticos en el array
     for (const sensorData of sensores) {
       const { pin, estado } = sensorData;
       
@@ -192,7 +167,7 @@ router.post('/auto-off', async (req, res) => {
         [aula.id, pin]
       );
 
-      if (sensor && estado === 0) { // Solo procesar apagados
+      if (sensor && estado === 0) {
         // Verificar si hay cambio real de estado
         const estadoCambio = sensor.estado !== estado;
         
@@ -201,24 +176,16 @@ router.post('/auto-off', async (req, res) => {
           await Sensor.updateEstado(sensor.id, estado);
           
           // Verificar si este apagado corresponde a un comando pendiente de usuario
-          // (en caso de que el usuario haya presionado "apagar" justo antes del timeout automático)
           const usuarioId = recentChanges.consumePendingCommand(sensor.id);
-          
           const tipoActuador = usuarioId ? 'usuario' : 'automatico';
           
           // Crear registro
           await Registro.create({
             id_sensor: sensor.id,
             tipo_actuador: tipoActuador,
-            id_usuario: usuarioId, // Será el ID del usuario si vino de la app, null si es automático
+            id_usuario: usuarioId,
             estado: estado
           });
-          
-          if (usuarioId) {
-            console.log(`💤 Apagado: Pin ${pin} (confirmado como USUARIO en lugar de automático)`);
-          } else {
-            console.log(`💤 Apagado automático: Pin ${pin} (30s sin movimiento)`);
-          }
           
           // Notificar vía WebSocket
           const io = req.app.get('socketio');
@@ -229,7 +196,7 @@ router.post('/auto-off', async (req, res) => {
               pin,
               estado,
               tipo: sensor.tipo,
-              automatico: !usuarioId // Solo es automático si no hay usuario
+              automatico: !usuarioId
             });
           }
         }
@@ -242,7 +209,7 @@ router.post('/auto-off', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Error procesando auto-off:', error.message);
+    console.error('Error en auto-off:', error.message);
     res.status(500).json({
       success: false,
       error: error.message
